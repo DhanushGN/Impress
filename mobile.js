@@ -2,50 +2,88 @@ let highestZ = 1;
 
 class Paper {
   holdingPaper = false;
-  startX = 0;
-  startY = 0;
-  moveX = 0;
-  moveY = 0;
-  currentX = 0;
-  currentY = 0;
+  touchStartX = 0;
+  touchStartY = 0;
+  touchMoveX = 0;
+  touchMoveY = 0;
+  touchEndX = 0;
+  touchEndY = 0;
+  prevTouchX = 0;
+  prevTouchY = 0;
+  velX = 0;
+  velY = 0;
+  rotation = Math.random() * 30 - 15;
+  currentPaperX = 0;
+  currentPaperY = 0;
+  rotating = false;
 
   init(paper) {
-    // Touch start event for mobile devices
-    paper.addEventListener('touchstart', (e) => {
-      if (this.holdingPaper) return;
-      this.holdingPaper = true;
-
-      paper.style.zIndex = highestZ;
-      highestZ += 1;
-
-      this.startX = e.touches[0].clientX - this.currentX;
-      this.startY = e.touches[0].clientY - this.currentY;
-    });
-
-    // Touch move event for mobile devices
     paper.addEventListener('touchmove', (e) => {
       e.preventDefault();
-      if (this.holdingPaper) {
-        this.moveX = e.touches[0].clientX;
-        this.moveY = e.touches[0].clientY;
-
-        this.currentX = this.moveX - this.startX;
-        this.currentY = this.moveY - this.startY;
-
-        paper.style.transform = `translateX(${this.currentX}px) translateY(${this.currentY}px)`;
+      if(!this.rotating) {
+        this.touchMoveX = e.touches[0].clientX;
+        this.touchMoveY = e.touches[0].clientY;
+        
+        this.velX = this.touchMoveX - this.prevTouchX;
+        this.velY = this.touchMoveY - this.prevTouchY;
       }
-    });
+        
+      const dirX = e.touches[0].clientX - this.touchStartX;
+      const dirY = e.touches[0].clientY - this.touchStartY;
+      const dirLength = Math.sqrt(dirX*dirX+dirY*dirY);
+      const dirNormalizedX = dirX / dirLength;
+      const dirNormalizedY = dirY / dirLength;
 
-    // Touch end event to stop dragging
+      const angle = Math.atan2(dirNormalizedY, dirNormalizedX);
+      let degrees = 180 * angle / Math.PI;
+      degrees = (360 + Math.round(degrees)) % 360;
+      if(this.rotating) {
+        this.rotation = degrees;
+      }
+
+      if(this.holdingPaper) {
+        if(!this.rotating) {
+          this.currentPaperX += this.velX;
+          this.currentPaperY += this.velY;
+        }
+        this.prevTouchX = this.touchMoveX;
+        this.prevTouchY = this.touchMoveY;
+
+        paper.style.transform = `translateX(${this.currentPaperX}px) translateY(${this.currentPaperY}px) rotateZ(${this.rotation}deg)`;
+      }
+    })
+
+    paper.addEventListener('touchstart', (e) => {
+      if(this.holdingPaper) return; 
+      this.holdingPaper = true;
+      
+      paper.style.zIndex = highestZ;
+      highestZ += 1;
+      
+      this.touchStartX = e.touches[0].clientX;
+      this.touchStartY = e.touches[0].clientY;
+      this.prevTouchX = this.touchStartX;
+      this.prevTouchY = this.touchStartY;
+    });
     paper.addEventListener('touchend', () => {
       this.holdingPaper = false;
+      this.rotating = false;
+    });
+
+    // For two-finger rotation on touch screens
+    paper.addEventListener('gesturestart', (e) => {
+      e.preventDefault();
+      this.rotating = true;
+    });
+    paper.addEventListener('gestureend', () => {
+      this.rotating = false;
     });
   }
 }
 
-const papers = Array.from(document.querySelectorAll('.paper.image'));
+const papers = Array.from(document.querySelectorAll('.paper'));
 
-papers.forEach((paper) => {
+papers.forEach(paper => {
   const p = new Paper();
   p.init(paper);
 });
